@@ -13,6 +13,8 @@
 #include "Serialization/MemoryWriter.h"
 #include "Serialization/ArchiveLoadCompressedProxy.h"
 #include "EOS_OSS_TutorialGameMode.h"
+#include "OnlineSessionSettings.h"
+#include "Online/OnlineSessionNames.h"
 
 
 AEOSPlayerController::AEOSPlayerController()
@@ -370,6 +372,11 @@ void AEOSPlayerController::HandleEnumTitleFilesCompleted(bool bWasSuccessfull, c
     IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
     IOnlineTitleFilePtr TitleFile = Subsystem->GetTitleFileInterface();
 
+    if (!TitleFile)
+    {
+        return;
+    }
+    
     if (bWasSuccessfull)
     {
         // Set an array of files we can populate
@@ -389,11 +396,15 @@ void AEOSPlayerController::HandleEnumTitleFilesCompleted(bool bWasSuccessfull, c
             &ThisClass::HandleReadTitleFileCompleted
         ));
 
-        // To keep things simple we are only reading the 1st file which is a .txt file. We will output the file content to the logs.  
-        if (!TitleFile->ReadFile(TitleFileNames[0]))
+        if (TitleFileNames.Num() > 0)
         {
-            UE_LOG(LogTemp, Error, TEXT("Error reading title storage file %s."), *TitleFileNames[0]);
+            // To keep things simple we are only reading the 1st file which is a .txt file. We will output the file content to the logs.  
+            if (!TitleFile->ReadFile(TitleFileNames[0]))
+            {
+                UE_LOG(LogTemp, Error, TEXT("Error reading title storage file %s."), *TitleFileNames[0]);
+            }
         }
+
     }
     else
     {
@@ -417,32 +428,29 @@ void AEOSPlayerController::HandleReadTitleFileCompleted(bool bWasSuccessfull, co
         if (TitleFile->GetFileContents(FileName, FileContents))
         {
             // Deserialize file and write to logs
-            char* FileData;
-            try
+            if (FileContents.Num() > 0)
             {
-                FileData = new char[FileContents.Num()];
-            }
-            catch (std::bad_alloc)
-            {
-                UE_LOG(LogTemp, Error, TEXT("Unable to allocate memory for title storage data")); 
-                
-                // Clear our handle and reset the delegate. 
-                TitleFile->ClearOnReadFileCompleteDelegate_Handle(ReadTitleFileDelegateHandle);
-                ReadTitleFileDelegateHandle.Reset();
-                return; 
-            }
-            
-            // Check file contents and hardcode log outputs to prevent log injection
-            std::memcpy(FileData, FileContents.GetData(), FileContents.Num());
-            FString FileDataAsFString = ANSI_TO_TCHAR(FileData); 
-            if (FileDataAsFString.Equals("Game data"))
-            {
-                UE_LOG(LogTemp, Log, TEXT("File contents are: Game data"));
+                char* FileData = new char[FileContents.Num()];
+                if (FileData != nullptr)
+                {
+                    // Check file contents and hardcode log outputs to prevent log injection
+                    std::memcpy(FileData, FileContents.GetData(), FileContents.Num());
+                    FString FileDataAsFString = ANSI_TO_TCHAR(FileData); 
+                    if (FileDataAsFString.Equals("Game data"))
+                    {
+                        UE_LOG(LogTemp, Log, TEXT("File contents are: Game data"));
+                    }
+
+                    // Clean up memory
+                    delete[] FileData;
+                    FileData = nullptr;
+                }
+                else
+                {
+                    UE_LOG(LogTemp, Error, TEXT("Unable to allocate memory for title storage data"));
+                }
             }
 
-            // Clean up memory
-            delete FileData;
-            FileData = nullptr; 
         }
         else
         {
@@ -685,23 +693,26 @@ void AEOSPlayerController::SetupNotifications()
     // Tutorial 7: EOS Lobbies are great as there are notifications sent for our backend when there are changes to lobbies (ex: Participant Joins/Leaves, lobby or lobby member data is updated, etc...) 
     IOnlineSubsystem* Subsystem = Online::GetSubsystem(GetWorld());
     IOnlineSessionPtr Session = Subsystem->GetSessionInterface();
-
+    
     // In this tutorial we're only giving an example of a notification for when a participant joins/leaves the lobby. The approach is similar for other notifications. 
-    Session->AddOnSessionParticipantsChangeDelegate_Handle(FOnSessionParticipantsChangeDelegate::CreateUObject(
-        this,
-        &ThisClass::HandleParticipantChanged)); 
+    // Session->AddOnSessionParticipantsChangeDelegate_Handle(FOnSessionParticipantsChangeDelegate::CreateUObject(
+    //     this,
+    //     &ThisClass::HandleParticipantChanged));
+
+    Session->AddOnSessionParticipantJoinedDelegate_Handle(FOnSessionParticipantJoinedDelegate::CreateUObject(this, &ThisClass::HandleParticipantJoined));
+    Session->AddOnSessionParticipantLeftDelegate_Handle(FOnSessionParticipantLeftDelegate::CreateUObject(this, &ThisClass::HandleParticipantLeft));
 }
 
-void AEOSPlayerController::HandleParticipantChanged(FName EOSLobbyName, const FUniqueNetId& NetId, bool bJoined)
+void AEOSPlayerController::HandleParticipantJoined(FName EOSLobbyName, const FUniqueNetId& NetId)
 {
     // Tutorial 7: Callback function called when participants join/leave. 
-    if (bJoined)
-    {
         UE_LOG(LogTemp, Log, TEXT("A player has joined Lobby: %s"), *LobbyName.ToString()); 
-    }
-    else
-    {
+}
+
+void AEOSPlayerController::HandleParticipantLeft(FName EOSLobbyName, const FUniqueNetId& NetId, EOnSessionParticipantLeftReason Reason)
+{
+    // Tutorial 7: Callback function called when participants join/leave. 
+
         UE_LOG(LogTemp, Log, TEXT("A player has left Lobby: %s"), *LobbyName.ToString());
-    }
 }
 #endif

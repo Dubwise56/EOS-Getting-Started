@@ -28,6 +28,11 @@ void AEOSPlayerState::UpdateStat(FString StatName, int32 StatValue)
 	IOnlineIdentityPtr Identity = Subsystem->GetIdentityInterface();
 	IOnlineStatsPtr Stats = Subsystem->GetStatsInterface();
 
+	if (!Stats)
+	{
+		return;
+	}
+	
 	// Check if player is online before trying to update stat 
 	FUniqueNetIdPtr NetId = Identity->GetUniquePlayerId(0);
 
@@ -81,7 +86,7 @@ void AEOSPlayerState::QueryLeaderboardGlobal(FName LeaderboardName)
 	}
 
 	FOnlineLeaderboardReadRef GlobalLeaderboardReadRef = MakeShared<FOnlineLeaderboardRead, ESPMode::ThreadSafe>(); 
-	GlobalLeaderboardReadRef->LeaderboardName = FName(LeaderboardName);
+	GlobalLeaderboardReadRef->LeaderboardName = LeaderboardName.ToString();
 	
 	// Create a delegate handle and pass in the function to execute once the leaderboard is fetch. 
 	// The function here is the same as with the friends leaderboard. 
@@ -120,9 +125,9 @@ void AEOSPlayerState::QueryLeaderboardFriends(FString StatName, FName Leaderboar
 
 	// Prepare arguments. Notice the column metadata is a stat and can be different than the sorted column
 	FOnlineLeaderboardReadRef FriendLeaderboardReadRef = MakeShared<FOnlineLeaderboardRead, ESPMode::ThreadSafe>();
-	FriendLeaderboardReadRef->LeaderboardName = FName(LeaderboardName);
-	FriendLeaderboardReadRef->ColumnMetadata.Add(FColumnMetaData(FName(StatName),EOnlineKeyValuePairDataType::Int32)); 
-	FriendLeaderboardReadRef->SortedColumn = FName(StatName);
+	FriendLeaderboardReadRef->LeaderboardName = LeaderboardName.ToString();
+	FriendLeaderboardReadRef->ColumnMetadata.Add(FColumnMetaData(StatName,EOnlineKeyValuePairDataType::Int32)); 
+	FriendLeaderboardReadRef->SortedColumn = StatName;
 
 	// Create a delegate handle and pass in the function to execute once the leaderboard is fetch. 
 	// The function here is the same as with the global leaderboard. 

@@ -123,7 +123,8 @@ protected:
 	void SetupNotifications();
 
 	// Callback function. This function will run when a lobby participant joins / leaves.
-	void HandleParticipantChanged(FName EOSLobbyName, const FUniqueNetId& NetId, bool bJoined); 
+	void HandleParticipantJoined(FName EOSLobbyName, const FUniqueNetId& NetId);
+	void HandleParticipantLeft(FName EOSLobbyName, const FUniqueNetId& NetId, EOnSessionParticipantLeftReason Reason);
 
 #endif
 };

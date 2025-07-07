@@ -137,7 +137,7 @@ void AEOS_OSS_TutorialCharacter::Jump()
 	// Only update if PS is valid AND only once per jump.
 	if (PS && !bIsJumping)
 	{
-		PS->UpdateStat("NUMBEROFJUMPS", 1); // Stat name hardcoded
+		//PS->UpdateStat("NUMBEROFJUMPS", 1); // Stat name hardcoded
 	}
 
 	bIsJumping = true;
